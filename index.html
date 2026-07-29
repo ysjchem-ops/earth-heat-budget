@@ -1,0 +1,1576 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>지구 열수지 변동 및 지구온난화 탐구 시뮬레이터</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts (Noto Sans KR & Inter) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+KR:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Noto Sans KR', 'Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        space: '#0f172a',
+                        atmosphere: '#1e1b4b',
+                        surface: '#064e3b',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #0b0f19;
+            color: #f1f5f9;
+        }
+        
+        /* Custom scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+
+        /* SVG Flow Dashed Animation */
+        .animated-flow {
+            stroke-dasharray: 8 6;
+            animation: flowDash 20s linear infinite;
+        }
+        @keyframes flowDash {
+            to { stroke-dashoffset: -400; }
+        }
+
+        /* Print CSS rules for report PDF generation */
+        @media print {
+            body {
+                background-color: #ffffff !important;
+                color: #000000 !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .print-only {
+                display: block !important;
+            }
+            .report-container {
+                box-shadow: none !important;
+                border: 1px solid #111111 !important;
+                background-color: #ffffff !important;
+                color: #000000 !important;
+            }
+            textarea, input {
+                border: 1px solid #666666 !important;
+                background-color: #ffffff !important;
+                color: #000000 !important;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-amber-500 selection:text-slate-950">
+
+    <!-- Navigation / Header -->
+    <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="p-2 bg-amber-500/20 text-amber-400 rounded-xl border border-amber-500/30">
+                    <i class="fa-solid fa-sun text-xl animate-spin-slow"></i>
+                </div>
+                <div>
+                    <h1 class="font-black text-lg sm:text-xl text-white tracking-tight flex items-center gap-2">
+                        지구 열수지 변동 시뮬레이터
+                        <span class="text-xs bg-indigo-500/20 text-indigo-300 font-bold px-2 py-0.5 rounded-md border border-indigo-500/30 hidden sm:inline-block">통합과학 [10통과2-02-03]</span>
+                    </h1>
+                    <p class="text-xs text-slate-400 hidden md:block">대기 중 이산화탄소($CO_2$) 농도 변화에 따른 에너지 평형과 지구 온난화 메커니즘 탐구</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-2">
+                <a href="#simulator-section" class="px-3 py-1.5 text-xs sm:text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">
+                    <i class="fa-solid fa-sliders mr-1 text-amber-400"></i> 시뮬레이터
+                </a>
+                <a href="#report-section" class="px-3 py-1.5 text-xs sm:text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">
+                    <i class="fa-solid fa-file-pen mr-1 text-emerald-400"></i> 보고서 작성
+                </a>
+                <button onclick="openTeacherAuthModal()" class="px-3 py-1.5 text-xs sm:text-sm font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 rounded-xl transition-all flex items-center gap-1.5 shadow-md">
+                    <i class="fa-solid fa-user-shield"></i> 교사 전용 관리자
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8 flex-grow w-full">
+
+        <!-- ================= SECTION 1: INTERACTIVE SIMULATOR ================= -->
+        <section id="simulator-section" class="space-y-6">
+            
+            <!-- Dashboard Controls Header Card -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-2xl backdrop-blur">
+                <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                    
+                    <!-- Slider Control Block -->
+                    <div class="flex-1 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <label for="co2-slider" class="text-sm sm:text-base font-extrabold text-slate-100 flex items-center gap-2">
+                                <i class="fa-solid fa-smog text-amber-400"></i> 대기 중 이산화탄소($CO_2$) 농도 조절:
+                            </label>
+                            <div class="bg-amber-950/60 border border-amber-500/40 px-3.5 py-1 rounded-xl flex items-center gap-1.5">
+                                <span id="co2-val-display" class="text-2xl font-black text-amber-400 font-mono tracking-tight">425</span>
+                                <span class="text-xs font-bold text-amber-300">ppm</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Range Slider Input -->
+                        <div class="relative flex items-center pt-1">
+                            <input id="co2-slider" type="range" min="280" max="1000" step="5" value="425" 
+                                   class="w-full h-3.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400/50">
+                        </div>
+                        <div class="flex justify-between text-[11px] text-slate-400 font-mono px-1">
+                            <span>280 ppm (산업혁명 전)</span>
+                            <span class="text-amber-400 font-bold">425 ppm (현재)</span>
+                            <span>560 ppm (2배)</span>
+                            <span>1000 ppm (극단적 온난화)</span>
+                        </div>
+
+                        <!-- Scenario Quick Preset Buttons -->
+                        <div class="flex flex-wrap items-center gap-2 pt-2">
+                            <span class="text-xs text-slate-400 font-medium mr-1"><i class="fa-solid fa-bolt text-amber-400/80 mr-1"></i>빠른 시나리오:</span>
+                            <button onclick="setCO2Preset(280)" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
+                                🌿 산업혁명 이전 (280ppm)
+                            </button>
+                            <button onclick="setCO2Preset(425)" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-amber-950/70 hover:bg-amber-900/70 text-amber-300 border border-amber-700/60 transition">
+                                🏙️ 현재 수준 (425ppm)
+                            </button>
+                            <button onclick="setCO2Preset(560)" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-orange-950/70 hover:bg-orange-900/70 text-orange-300 border border-orange-700/60 transition">
+                                ⚠️ CO₂ 2배 배출 (560ppm)
+                            </button>
+                            <button onclick="setCO2Preset(850)" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-rose-950/70 hover:bg-rose-900/70 text-rose-300 border border-rose-700/60 transition">
+                                🚨 고배출 시나리오 (850ppm)
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Core Metrics Overview Cards -->
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 lg:w-[520px]">
+                        <!-- Metric 1: Temperature Anomaly -->
+                        <div class="bg-slate-800/90 p-3 rounded-xl border border-slate-700/70 text-center flex flex-col justify-between">
+                            <span class="text-xs text-slate-400 font-medium">지표 평균 기온 변화</span>
+                            <div class="my-1">
+                                <span id="metric-temp" class="text-xl sm:text-2xl font-black text-rose-400 font-mono">+0.85</span>
+                                <span class="text-xs text-rose-300 font-bold">℃</span>
+                            </div>
+                            <span class="text-[10px] text-slate-400">(산업혁명 대비)</span>
+                        </div>
+
+                        <!-- Metric 2: Radiative Forcing -->
+                        <div class="bg-slate-800/90 p-3 rounded-xl border border-slate-700/70 text-center flex flex-col justify-between">
+                            <span class="text-xs text-slate-400 font-medium">복사 강제력</span>
+                            <div class="my-1">
+                                <span id="metric-forcing" class="text-xl sm:text-2xl font-black text-amber-400 font-mono">+2.23</span>
+                                <span class="text-xs text-amber-300 font-bold">W/m²</span>
+                            </div>
+                            <span class="text-[10px] text-slate-400">(흡수 열에너지)</span>
+                        </div>
+
+                        <!-- Metric 3: Downward Longwave Radiation -->
+                        <div class="bg-slate-800/90 p-3 rounded-xl border border-slate-700/70 text-center flex flex-col justify-between">
+                            <span class="text-xs text-slate-400 font-medium">대기 역방사 (온실효과)</span>
+                            <div class="my-1">
+                                <span id="metric-downwave" class="text-xl sm:text-2xl font-black text-orange-400 font-mono">97.8</span>
+                                <span class="text-xs text-orange-300 font-bold">단위</span>
+                            </div>
+                            <span id="metric-downwave-diff" class="text-[10px] text-orange-400 font-semibold">(+2.8 증가)</span>
+                        </div>
+
+                        <!-- Metric 4: Space Outgoing Heat Flux -->
+                        <div class="bg-slate-800/90 p-3 rounded-xl border border-slate-700/70 text-center flex flex-col justify-between">
+                            <span class="text-xs text-slate-400 font-medium">우주 총 유출 복사</span>
+                            <div class="my-1">
+                                <span id="metric-outgoing" class="text-xl sm:text-2xl font-black text-cyan-400 font-mono">69.2</span>
+                                <span class="text-xs text-cyan-300 font-bold">단위</span>
+                            </div>
+                            <span id="metric-balance-status" class="text-[10px] text-emerald-400 font-semibold">유입 70 vs 유출 70</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Interactive Display: Left (Diagram / Chart), Right (Educational Guide) -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                <!-- Left Area: Energy Flow Visualizer (7 Columns) -->
+                <div class="lg:col-span-7 bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-2xl flex flex-col justify-between">
+                    
+                    <!-- View Mode Tab Controls -->
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-3">
+                        <div class="flex items-center space-x-2">
+                            <button id="btn-tab-sankey" onclick="switchViewTab('sankey')" class="px-3.5 py-1.5 text-xs sm:text-sm font-bold rounded-lg bg-indigo-600 text-white transition flex items-center gap-2">
+                                <i class="fa-solid fa-diagram-project"></i> 지구 열수지 에너지 흐름도
+                            </button>
+                            <button id="btn-tab-chart" onclick="switchViewTab('chart')" class="px-3.5 py-1.5 text-xs sm:text-sm font-bold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition flex items-center gap-2">
+                                <i class="fa-chart-column fa-solid"></i> 에너지 구성요소 비교 차트
+                            </button>
+                        </div>
+                        <span class="text-xs text-slate-400 font-mono hidden sm:inline-block">유입 태양에너지 = 100 기준</span>
+                    </div>
+
+                    <!-- TAB 1: Robust SVG Energy Sankey / Flux Diagram -->
+                    <div id="tab-sankey" class="w-full my-1 flex-grow flex items-center justify-center min-h-[380px] bg-slate-950/60 rounded-xl p-2 border border-slate-800/80">
+                        <svg id="heat-budget-svg" viewBox="0 0 800 480" class="w-full h-auto max-h-[460px] overflow-visible select-none">
+                            <defs>
+                                <!-- Solar Flow Gradient -->
+                                <linearGradient id="grad-solar" x1="0%" y1="0%" x2="0%" y2="100%">
+                                    <stop offset="0%" stop-color="#fde047" />
+                                    <stop offset="100%" stop-color="#eab308" />
+                                </linearGradient>
+                                <!-- Reflected Solar Gradient -->
+                                <linearGradient id="grad-reflect" x1="0%" y1="100%" x2="0%" y2="0%">
+                                    <stop offset="0%" stop-color="#fef08a" stop-opacity="0.9" />
+                                    <stop offset="100%" stop-color="#fef9c3" stop-opacity="0.3" />
+                                </linearGradient>
+                                <!-- Surface Infrared Upward Gradient -->
+                                <linearGradient id="grad-lw-up" x1="0%" y1="100%" x2="0%" y2="0%">
+                                    <stop offset="0%" stop-color="#f87171" />
+                                    <stop offset="100%" stop-color="#ef4444" />
+                                </linearGradient>
+                                <!-- Atmospheric Downward Re-radiation Gradient -->
+                                <linearGradient id="grad-lw-down" x1="0%" y1="0%" x2="0%" y2="100%">
+                                    <stop offset="0%" stop-color="#fb923c" />
+                                    <stop offset="100%" stop-color="#ea580c" />
+                                </linearGradient>
+
+                                <!-- Standard Arrow Markers -->
+                                <marker id="arrow-down" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#ea580c" />
+                                </marker>
+                                <marker id="arrow-up" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#ef4444" />
+                                </marker>
+                                <marker id="arrow-solar" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#eab308" />
+                                </marker>
+                            </defs>
+
+                            <!-- Regions Background Layers -->
+                            <!-- Space Region -->
+                            <rect x="20" y="20" width="760" height="95" rx="10" fill="#0f172a" stroke="#334155" stroke-width="1.5" stroke-dasharray="5 5"/>
+                            <text x="35" y="48" fill="#94a3b8" font-size="13" font-weight="bold">우주 (SPACE)</text>
+
+                            <!-- Atmosphere Region -->
+                            <rect id="svg-atm-bg" x="20" y="135" width="760" height="170" rx="10" fill="#1e1b4b" fill-opacity="0.75" stroke="#4338ca" stroke-width="1.5"/>
+                            <text x="35" y="162" fill="#a5b4fc" font-size="13" font-weight="bold">대기층 (ATMOSPHERE) - 온실가스 CO₂ 흡수층</text>
+
+                            <!-- Surface Region -->
+                            <rect x="20" y="325" width="760" height="135" rx="10" fill="#064e3b" fill-opacity="0.5" stroke="#059669" stroke-width="1.5"/>
+                            <text x="35" y="352" fill="#6ee7b7" font-size="13" font-weight="bold">지표면 (EARTH SURFACE)</text>
+
+                            <!-- Flow Streams (SVG Paths) -->
+
+                            <!-- 1. Solar Input Stream (100) -->
+                            <path d="M 110,20 L 110,315" stroke="url(#grad-solar)" stroke-width="26" fill="none" opacity="0.9" marker-end="url(#arrow-solar)"/>
+                            <rect x="45" y="62" width="130" height="22" rx="4" fill="#0f172a" fill-opacity="0.9"/>
+                            <text x="110" y="77" fill="#fde047" font-size="11" font-weight="bold" text-anchor="middle">태양 에너지 유입 (100)</text>
+
+                            <!-- 2. Solar Reflected Stream (30) -->
+                            <path d="M 110,170 Q 110,95 200,35" stroke="url(#grad-reflect)" stroke-width="12" fill="none" stroke-linecap="round"/>
+                            <text x="205" y="32" fill="#fef9c3" font-size="11" font-weight="bold">태양 반사 (30)</text>
+
+                            <!-- 3. Solar Absorbed Atmosphere (20) -->
+                            <path d="M 110,180 Q 110,225 170,225" stroke="#facc15" stroke-width="8" fill="none" stroke-linecap="round"/>
+                            <text x="175" y="229" fill="#fde047" font-size="11">대기 직접 흡수 (20)</text>
+
+                            <!-- 4. Solar Absorbed Surface (50) -->
+                            <rect x="55" y="375" width="110" height="20" rx="4" fill="#0f172a" fill-opacity="0.9"/>
+                            <text x="110" y="389" fill="#fef08a" font-size="11" font-weight="bold" text-anchor="middle">지표 직접 흡수 (50)</text>
+
+                            <!-- 5. Convection / Evaporation Latent Heat Stream (30) -->
+                            <path d="M 270,325 L 270,225" stroke="#38bdf8" stroke-width="10" fill="none" stroke-dasharray="5 3"/>
+                            <rect x="215" y="265" width="110" height="20" rx="4" fill="#0f172a" fill-opacity="0.9"/>
+                            <text x="270" y="279" fill="#7dd3fc" font-size="11" font-weight="bold" text-anchor="middle">대류·잠열 이동 (30)</text>
+
+                            <!-- 6. Surface Longwave Infrared Emission Stream -->
+                            <path id="svg-path-sfc-lw" d="M 430,325 L 430,205" stroke="url(#grad-lw-up)" stroke-width="22" fill="none"/>
+                            <rect x="365" y="282" width="130" height="34" rx="6" fill="#0f172a" fill-opacity="0.95" stroke="#ef4444" stroke-width="1"/>
+                            <text x="430" y="297" fill="#fca5a5" font-size="11" font-weight="bold" text-anchor="middle">지표 방출 복사 에너지</text>
+                            <text id="svg-text-sfc-lw" x="430" y="311" fill="#ffffff" font-size="12" font-weight="extrabold" text-anchor="middle">(117.0)</text>
+
+                            <!-- 7. Atmospheric Window Direct Radiation to Space -->
+                            <path id="svg-path-window" d="M 430,195 L 430,35" stroke="#f87171" stroke-width="6" fill="none" stroke-linecap="round" marker-end="url(#arrow-up)"/>
+                            <rect x="442" y="60" width="115" height="30" rx="4" fill="#0f172a" fill-opacity="0.9"/>
+                            <text x="447" y="74" fill="#fca5a5" font-size="10" text-anchor="start">대기창 우주직통 방출</text>
+                            <text id="svg-text-window" x="447" y="86" fill="#ffffff" font-size="11" font-weight="bold">(15.0)</text>
+
+                            <!-- 8. Atmosphere Downward Re-radiation Stream (Key Greenhouse Effect) -->
+                            <path id="svg-path-down-lw" d="M 610,205 L 610,315" stroke="url(#grad-lw-down)" stroke-width="18" fill="none" marker-end="url(#arrow-down)"/>
+                            
+                            <rect x="525" y="235" width="170" height="48" rx="8" fill="#0f172a" fill-opacity="0.95" stroke="#f97316" stroke-width="1.5"/>
+                            <text x="610" y="253" fill="#fdba74" font-size="12" font-weight="bold" text-anchor="middle">대기 역방사 (온실효과)</text>
+                            <text id="svg-text-down-lw" x="610" y="272" fill="#ffedd5" font-size="13" font-weight="extrabold" text-anchor="middle">97.8 단위</text>
+
+                            <!-- 9. Atmosphere Upward Emission to Space Stream -->
+                            <path id="svg-path-atm-up" d="M 340,185 Q 340,100 330,35" stroke="#ea580c" stroke-width="12" fill="none" marker-end="url(#arrow-up)"/>
+                            <rect x="250" y="58" width="105" height="22" rx="4" fill="#0f172a" fill-opacity="0.9"/>
+                            <text x="302" y="73" fill="#fdba74" font-size="11" font-weight="bold" text-anchor="middle">대기 우주방출 (54.2)</text>
+                        </svg>
+                    </div>
+
+                    <!-- TAB 2: Chart.js Bar Graph View -->
+                    <div id="tab-chart" class="w-full my-1 flex-grow hidden flex items-center justify-center min-h-[380px] bg-slate-950/60 rounded-xl p-4 border border-slate-800/80">
+                        <div class="w-full h-[350px] relative">
+                            <canvas id="budgetBarChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Quick Footer Bar -->
+                    <div class="mt-3 p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/50 text-xs text-slate-300 flex items-center justify-between">
+                        <span class="flex items-center gap-1.5">
+                            <i class="fa-solid fa-circle-info text-indigo-400"></i>
+                            <span>주요 탐구 포인트:</span> <strong class="text-amber-300">CO₂ 수치 증가 $\rightarrow$ 대기 역방사 증가 $\rightarrow$ 지표 온도 상승</strong>
+                        </span>
+                        <span class="text-emerald-400 font-bold hidden sm:inline">실시간 복사 평형 분석 중</span>
+                    </div>
+                </div>
+
+                <!-- Right Area: Dynamic Educational Data Analysis Guide (5 Columns) -->
+                <div class="lg:col-span-5 bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-2xl flex flex-col justify-between">
+                    <div>
+                        <!-- Section Header -->
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+                            <h2 class="font-black text-base text-amber-300 flex items-center gap-2">
+                                <i class="fa-solid fa-lightbulb text-amber-400 animate-bounce"></i> 
+                                데이터 분석 가이드 (원인과 결과 추론)
+                            </h2>
+                            <span class="text-[11px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full font-bold">자동 생성 추론</span>
+                        </div>
+
+                        <!-- Dynamic Step-by-Step Educational Explanation Cards -->
+                        <div class="space-y-3.5 text-xs sm:text-sm leading-relaxed">
+                            
+                            <!-- Step 1 Card -->
+                            <div class="bg-slate-800/80 p-3.5 rounded-xl border border-slate-700/80 space-y-1">
+                                <div class="flex items-center justify-between text-xs text-amber-400 font-extrabold">
+                                    <span>[단계 1] 온실가스 적외선 흡수 증가</span>
+                                    <span class="font-mono text-[11px]" id="guide-step1-tag">CO₂ = 425 ppm</span>
+                                </div>
+                                <p id="guide-step1-text" class="text-slate-200">
+                                    대기 중 이산화탄소 농도가 증가함에 따라 지표에서 방출되는 적외선 복사에너지의 대기 흡수율이 증가합니다. 그 결과 대기창을 통해 우주로 직접 빠져나가는 열 방출량이 줄어듭니다.
+                                </p>
+                            </div>
+
+                            <!-- Step 2 Card -->
+                            <div class="bg-slate-800/80 p-3.5 rounded-xl border border-slate-700/80 space-y-1">
+                                <div class="flex items-center justify-between text-xs text-orange-400 font-extrabold">
+                                    <span>[단계 2] 대기 역방사(온실효과) 증대</span>
+                                    <span class="font-mono text-[11px]" id="guide-step2-tag">역방사: +2.8 단위</span>
+                                </div>
+                                <p id="guide-step2-text" class="text-slate-200">
+                                    대기가 더 많은 적외선 열을 포획하면서 대기층 온도가 상승하고, 지표면 방향으로 다시 방출하는 <strong>'대기 역방사 에너지'</strong>가 기본 95.0 단위에서 증가하여 지표 유입 에너지가 누적됩니다.
+                                </p>
+                            </div>
+
+                            <!-- Step 3 Card -->
+                            <div class="bg-slate-800/80 p-3.5 rounded-xl border border-slate-700/80 space-y-1">
+                                <div class="flex items-center justify-between text-xs text-rose-400 font-extrabold">
+                                    <span>[단계 3] 지표 기온 상승 및 신규 에너지 평형</span>
+                                    <span class="font-mono text-[11px]" id="guide-step3-tag">ΔT = +0.85 ℃</span>
+                                </div>
+                                <p id="guide-step3-text" class="text-slate-200">
+                                    지표면에 열이 축적되어 평균 기온이 상승하고, 슈테판-볼츠만 법칙에 따라 높아진 기온에서 지표 방출 복사량이 늘어나면서 지표면은 더 높은 온도에서 새로운 열수지 평형에 도달합니다.
+                                </p>
+                            </div>
+
+                            <!-- Report Prompt Hint Box -->
+                            <div class="bg-indigo-950/50 p-3.5 rounded-xl border border-indigo-500/30 text-xs text-indigo-200 space-y-1.5">
+                                <span class="font-extrabold text-indigo-300 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-graduation-cap"></i> 보고서 탐구 힌트:
+                                </span>
+                                <p id="guide-prompt" class="text-indigo-100/90 leading-snug">
+                                    "대기 중 CO₂ 농도가 증가함에 따라 대기 역방사 수치가 어떻게 변화하며, 이로 인해 지구 전체 기온이 상승하는 과정을 열수지 수치를 근거로 설명해 보세요."
+                                </p>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- Action: Capture Live Simulation Data into Report -->
+                    <div class="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between">
+                        <span class="text-xs text-slate-400">현재 데이터 보고서에 기재</span>
+                        <button onclick="captureDataToReport()" class="px-3.5 py-2 text-xs font-black rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 transition flex items-center gap-1.5 shadow-lg shadow-amber-500/20">
+                            <i class="fa-solid fa-camera"></i> 현재 측정 데이터 캡처 추가
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+
+        </section>
+
+        <!-- ================= SECTION 2: STUDENT INQUIRY REPORT PAGE ================= -->
+        <section id="report-section" class="pt-6 border-t border-slate-800 space-y-6">
+            
+            <!-- Section Title -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-xl sm:text-2xl font-black text-white flex items-center gap-2">
+                        <i class="fa-solid fa-file-signature text-emerald-400"></i> 통합과학 탐구 보고서 작성
+                    </h2>
+                    <p class="text-xs sm:text-sm text-slate-400">시뮬레이션 데이터를 바탕으로 내가 세운 가설을 검증하고 온실효과 및 지구 환경 변화를 논리적으로 작성하세요.</p>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="flex items-center space-x-2 no-print">
+                    <button onclick="copyReportToClipboard()" class="px-3.5 py-2 text-xs sm:text-sm font-bold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5">
+                        <i class="fa-regular fa-copy"></i> 보고서 복사
+                    </button>
+                    <button onclick="printReport()" class="px-4 py-2 text-xs sm:text-sm font-extrabold rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-lg shadow-emerald-900/30 flex items-center gap-1.5">
+                        <i class="fa-solid fa-print"></i> PDF 저장 / 인쇄
+                    </button>
+                </div>
+            </div>
+
+            <!-- Structured Report Paper Card -->
+            <div class="report-container bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6">
+                
+                <!-- Report Header Student Info -->
+                <div class="border-b border-slate-800 pb-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 mb-1">탐구 주제</label>
+                        <input type="text" readonly value="지구온난화로 인한 열수지 변동 및 에너지 평형 탐구" class="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-xs sm:text-sm text-amber-300 font-bold">
+                    </div>
+                    <div>
+                        <label for="student-info" class="block text-xs font-bold text-slate-400 mb-1">학번 및 성명 <span class="text-rose-400">*</span></label>
+                        <input type="text" id="student-info" placeholder="예: 1학년 3반 12번 홍길동" class="w-full bg-slate-800 border border-slate-700 focus:border-emerald-500 rounded-xl px-3 py-2 text-xs sm:text-sm text-white focus:outline-none transition">
+                    </div>
+                    <div>
+                        <label for="report-date" class="block text-xs font-bold text-slate-400 mb-1">탐구 수행 일시</label>
+                        <input type="date" id="report-date" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs sm:text-sm text-white focus:outline-none">
+                    </div>
+                </div>
+
+                <!-- 1. Student Hypothesis Section -->
+                <div class="space-y-2">
+                    <label for="report-hypothesis" class="block text-sm font-bold text-emerald-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-lightbulb"></i> [1] 내가 세운 가설
+                    </label>
+                    <textarea id="report-hypothesis" rows="3" 
+                        placeholder="예: 대기 중 이산화탄소 농도가 증가하면 대기가 적외선 복사에너지를 더 많이 흡수하여 대기 역방사량이 늘어날 것이며, 이로 인해 지구 표면 기온이 상승할 것이다."
+                        class="w-full bg-slate-800/80 border border-slate-700/80 focus:border-emerald-500 rounded-xl p-3 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none leading-relaxed resize-y"></textarea>
+                </div>
+
+                <!-- Formative Assessment Section (형성평가) -->
+                <div class="space-y-4 pt-2 border-t border-slate-800">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-sm font-bold text-indigo-400 flex items-center gap-1.5">
+                            <i class="fa-solid fa-pen-to-square"></i> [2] 열수지 개념 확인 형성평가 (3문항)
+                        </label>
+                        <span class="text-xs text-slate-400">제출 시 자동 채점되어 교사용 대시보드로 전달됩니다.</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <!-- Question 1 -->
+                        <div class="bg-slate-800/60 p-4 rounded-xl border border-slate-700/60 space-y-2">
+                            <p class="text-xs font-bold text-slate-200">Q1. 대기 중 $CO_2$ 농도가 증가할 때 가장 직접적으로 증가하는 에너지 흐름은?</p>
+                            <div class="space-y-1.5 text-xs text-slate-300">
+                                <label class="flex items-center gap-2 p-1.5 rounded hover:bg-slate-700/50 cursor-pointer">
+                                    <input type="radio" name="quiz-q1" value="A" class="accent-indigo-500"> 대기창 우주 직접 방출
+                                </label>
+                                <label class="flex items-center gap-2 p-1.5 rounded hover:bg-slate-700/50 cursor-pointer">
+                                    <input type="radio" name="quiz-q1" value="B" class="accent-indigo-500"> 대기 역방사 (온실효과)
+                                </label>
+                                <label class="flex items-center gap-2 p-1.5 rounded hover:bg-slate-700/50 cursor-pointer">
+                                    <input type="radio" name="quiz-q1" value="C" class="accent-indigo-500"> 지표의 태양 반사율
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Question 2 -->
+                        <div class="bg-slate-800/60 p-4 rounded-xl border border-slate-700/60 space-y-2">
+                            <p class="text-xs font-bold text-slate-200">Q2. 온난화로 새로운 복사 평형 상태 도달 시 우주로 방출되는 총 에너지량은?</p>
+                            <div class="space-y-1.5 text-xs text-slate-300">
+                                <label class="flex items-center gap-2 p-1.5 rounded hover:bg-slate-700/50 cursor-pointer">
+                                    <input type="radio" name="quiz-q2" value="A" class="accent-indigo-500"> 유입되는 태양 에너지량과 같다 (70단위)
+                                </label>
+                                <label class="flex items-center gap-2 p-1.5 rounded hover:bg-slate-700/50 cursor-pointer">
+                                    <input type="radio" name="quiz-q2" value="B" class="accent-indigo-500"> 유입량보다 훨씬 줄어든다
+                                </label>
+                                <label class="flex items-center gap-2 p-1.5 rounded hover:bg-slate-700/50 cursor-pointer">
+                                    <input type="radio" name="quiz-q2" value="C" class="accent-indigo-500"> 0이 되어 열이 우주로 안 나간다
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Question 3 -->
+                        <div class="bg-slate-800/60 p-4 rounded-xl border border-slate-700/60 space-y-2">
+                            <p class="text-xs font-bold text-slate-200">Q3. $CO_2$ 농도 증가 시 대기창(Atmospheric Window) 방출량의 변화는?</p>
+                            <div class="space-y-1.5 text-xs text-slate-300">
+                                <label class="flex items-center gap-2 p-1.5 rounded hover:bg-slate-700/50 cursor-pointer">
+                                    <input type="radio" name="quiz-q3" value="A" class="accent-indigo-500"> 대기 적외선 포획 증가로 감소한다
+                                </label>
+                                <label class="flex items-center gap-2 p-1.5 rounded hover:bg-slate-700/50 cursor-pointer">
+                                    <input type="radio" name="quiz-q3" value="B" class="accent-indigo-500"> 큰 폭으로 증가한다
+                                </label>
+                                <label class="flex items-center gap-2 p-1.5 rounded hover:bg-slate-700/50 cursor-pointer">
+                                    <input type="radio" name="quiz-q3" value="C" class="accent-indigo-500"> 변화 없이 상반되게 일정하다
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Simulation Results Data Table Section -->
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-sm font-bold text-emerald-400 flex items-center gap-1.5">
+                            <i class="fa-solid fa-table"></i> [3] 시뮬레이션 결과 데이터 측정 기록
+                        </label>
+                        <button onclick="captureDataToReport()" class="no-print text-xs text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1">
+                            <i class="fa-solid fa-plus-circle"></i> 현재 측정값 행 추가
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto rounded-xl border border-slate-800">
+                        <table class="w-full text-left text-xs text-slate-300">
+                            <thead class="bg-slate-800/90 text-slate-200 uppercase font-bold border-b border-slate-700">
+                                <tr>
+                                    <th class="py-2.5 px-3">CO₂ 농도 (ppm)</th>
+                                    <th class="py-2.5 px-3">복사 강제력 (W/m²)</th>
+                                    <th class="py-2.5 px-3">대기 역방사 (단위)</th>
+                                    <th class="py-2.5 px-3">대기창 우주직통 (단위)</th>
+                                    <th class="py-2.5 px-3">지표 방출 복사 (단위)</th>
+                                    <th class="py-2.5 px-3">지표 기온 변화 (℃)</th>
+                                    <th class="py-2.5 px-3 text-center no-print">삭제</th>
+                                </tr>
+                            </thead>
+                            <tbody id="report-data-tbody" class="divide-y divide-slate-800">
+                                <!-- Default Baseline Reference Row -->
+                                <tr class="bg-slate-900/60 hover:bg-slate-800/50">
+                                    <td class="py-2 px-3 font-mono font-bold text-amber-400">280 (기준)</td>
+                                    <td class="py-2 px-3 font-mono">0.00</td>
+                                    <td class="py-2 px-3 font-mono">95.0</td>
+                                    <td class="py-2 px-3 font-mono">15.0</td>
+                                    <td class="py-2 px-3 font-mono">115.0</td>
+                                    <td class="py-2 px-3 font-mono text-emerald-400">0.00 ℃</td>
+                                    <td class="py-2 px-3 text-center no-print"><span class="text-slate-600 text-[10px]">기준값</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 3. Conclusions & Environmental Impacts Section -->
+                <div class="space-y-2">
+                    <label for="report-conclusion" class="block text-sm font-bold text-emerald-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-earth-americas"></i> [4] 최종 결론 및 지구 환경 변화 추론
+                    </label>
+                    <textarea id="report-conclusion" rows="4" 
+                        placeholder="시뮬레이션 데이터 분석 결과를 종합하여 가설의 타당성을 평가하고, 이로 인한 빙하 해빙, 해수면 상승, 이상 기후 등 지구 환경 및 지역 사회 환경에 미칠 영향을 논리적으로 기술하세요."
+                        class="w-full bg-slate-800/80 border border-slate-700/80 focus:border-emerald-500 rounded-xl p-3 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none leading-relaxed resize-y"></textarea>
+                </div>
+
+                <!-- Final Submit to Teacher Button -->
+                <div class="pt-4 border-t border-slate-800 flex justify-end no-print">
+                    <button onclick="submitStudentReport()" class="px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold rounded-xl shadow-lg shadow-emerald-900/40 flex items-center gap-2 transition transform active:scale-95">
+                        <i class="fa-solid fa-paper-plane"></i> 형성평가 및 탐구 보고서 제출하기
+                    </button>
+                </div>
+
+                <!-- 5. Teacher Feedback Received Card (For Student View) -->
+                <div id="student-feedback-box" class="space-y-2 pt-4 border-t border-slate-800 hidden">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-sm font-bold text-amber-400 flex items-center gap-1.5">
+                            <i class="fa-solid fa-comment-dots text-lg"></i> [5] 교사 피드백 및 AI 탐구 지도
+                        </label>
+                        <span id="student-feedback-date" class="text-xs text-slate-400 font-mono"></span>
+                    </div>
+                    <div id="student-feedback-content" class="bg-amber-950/40 border border-amber-500/40 rounded-xl p-4 text-xs sm:text-sm text-amber-100 leading-relaxed font-sans whitespace-pre-wrap shadow-inner">
+                        <!-- Filled dynamically when teacher sends feedback -->
+                    </div>
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- Password Auth Modal -->
+    <div id="teacher-auth-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[100] flex items-center justify-center p-4 opacity-0 pointer-events-none transition-all duration-300">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4 transform scale-95 transition-all">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h3 class="font-bold text-white text-base flex items-center gap-2">
+                    <i class="fa-solid fa-lock text-amber-400"></i> 교사 전용 인증
+                </h3>
+                <button onclick="closeTeacherAuthModal()" class="text-slate-400 hover:text-white text-sm">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <p class="text-xs text-slate-300">관리자 대시보드 접근을 위해 비밀번호를 입력하세요.</p>
+            <div>
+                <input type="password" id="teacher-pwd-input" placeholder="비밀번호 입력" 
+                       onkeydown="if(event.key==='Enter') checkTeacherPassword()"
+                       class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-400 font-mono tracking-widest text-center">
+                <p id="pwd-error-msg" class="text-rose-400 text-xs font-semibold mt-1.5 hidden"><i class="fa-solid fa-circle-exclamation mr-1"></i>비밀번호가 일치하지 않습니다.</p>
+            </div>
+            <div class="flex gap-2 pt-2">
+                <button onclick="closeTeacherAuthModal()" class="w-1/2 py-2 text-xs font-bold text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-xl transition">취소</button>
+                <button onclick="checkTeacherPassword()" class="w-1/2 py-2 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 rounded-xl transition shadow-lg shadow-amber-500/20">인증 확인</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Teacher Dashboard Full Screen Modal Page -->
+    <div id="teacher-dashboard-modal" class="fixed inset-0 bg-slate-950 z-[90] overflow-y-auto hidden">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+            
+            <!-- Dashboard Header -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                <div class="flex items-center gap-3">
+                    <div class="p-2.5 bg-amber-500/20 text-amber-400 rounded-2xl border border-amber-500/40">
+                        <i class="fa-solid fa-chalkboard-user text-2xl"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-xl sm:text-2xl font-black text-white flex items-center gap-2">
+                            통합과학 교사 전용 관리자 대시보드
+                            <span class="text-xs bg-emerald-500/20 text-emerald-400 font-bold px-2.5 py-1 rounded-full border border-emerald-500/30">실시간 수집 중</span>
+                        </h2>
+                        <p class="text-xs text-slate-400">지구 열수지 변동 탐구 보고서 및 형성평가 학생 제출 데이터 분석</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <button onclick="exportToCSV()" class="px-4 py-2 text-xs font-extrabold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl transition shadow-lg shadow-emerald-900/40 flex items-center gap-2">
+                        <i class="fa-solid fa-file-csv text-sm"></i> CSV 다운로드
+                    </button>
+                    <button onclick="closeTeacherDashboard()" class="px-3.5 py-2 text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl border border-slate-700 transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-arrow-left"></i> 시뮬레이터로 돌아가기
+                    </button>
+                </div>
+            </div>
+
+            <!-- Top Section: Real-time Submission Progress & Statistics for Teacher -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-6 space-y-5 shadow-2xl">
+                
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                    <div>
+                        <span class="text-xs font-bold text-amber-400 uppercase tracking-wider">학급 제출 현황 카운터</span>
+                        <div class="flex items-baseline gap-2 mt-1">
+                            <span class="text-3xl sm:text-4xl font-black text-white font-mono" id="stat-submitted-count">19</span>
+                            <span class="text-lg font-bold text-slate-400">/ <span id="stat-total-students">25</span> 명</span>
+                            <span class="text-sm font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2.5 py-0.5 rounded-md ml-2" id="stat-submission-rate">(제출률 76.0%)</span>
+                        </div>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="flex-1 md:max-w-md space-y-1.5">
+                        <div class="flex justify-between text-xs font-bold text-slate-300">
+                            <span>전체 제출 진행도</span>
+                            <span id="stat-progress-text" class="text-amber-400">19/25 완료</span>
+                        </div>
+                        <div class="w-full h-3 bg-slate-800 rounded-full overflow-hidden p-0.5 border border-slate-700">
+                            <div id="stat-progress-bar" class="h-full bg-gradient-to-r from-amber-500 to-emerald-500 rounded-full transition-all duration-500" style="width: 76%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4 Statistics Reference Cards for Teacher -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    
+                    <!-- Card 1: Formative Assessment Class Average Score -->
+                    <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700/80 space-y-1">
+                        <div class="flex justify-between items-center text-xs text-slate-400 font-medium">
+                            <span>형성평가 학급 평균</span>
+                            <i class="fa-solid fa-award text-amber-400"></i>
+                        </div>
+                        <div class="text-2xl font-black text-white font-mono" id="stat-avg-score">88.2 <span class="text-xs text-amber-400 font-sans">점</span></div>
+                        <p class="text-[11px] text-emerald-400">3문항 중 평균 2.65문항 정답</p>
+                    </div>
+
+                    <!-- Card 2: Highest Error Rate Question -->
+                    <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700/80 space-y-1">
+                        <div class="flex justify-between items-center text-xs text-slate-400 font-medium">
+                            <span>주의 필요 문항</span>
+                            <i class="fa-solid fa-triangle-exclamation text-rose-400"></i>
+                        </div>
+                        <div class="text-sm font-bold text-rose-300">Q3. 대기창 방출량 변화</div>
+                        <p class="text-[11px] text-slate-400">정답률 68% (대기 흡수 오해 다수)</p>
+                    </div>
+
+                    <!-- Card 3: Most Tested CO2 Level -->
+                    <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700/80 space-y-1">
+                        <div class="flex justify-between items-center text-xs text-slate-400 font-medium">
+                            <span>주요 탐구 CO₂ 구간</span>
+                            <i class="fa-solid fa-fire text-orange-400"></i>
+                        </div>
+                        <div class="text-xl font-extrabold text-orange-300 font-mono">560 ~ 850 <span class="text-xs font-sans">ppm</span></div>
+                        <p class="text-[11px] text-slate-400">CO₂ 2배 배출 시나리오 다수 선택</p>
+                    </div>
+
+                    <!-- Card 4: Teacher Pedagogical Feedback Insight -->
+                    <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700/80 space-y-1">
+                        <div class="flex justify-between items-center text-xs text-slate-400 font-medium">
+                            <span>수업 피드백 포인트</span>
+                            <i class="fa-solid fa-lightbulb text-cyan-400"></i>
+                        </div>
+                        <div class="text-xs font-bold text-cyan-200 truncate">대기 역방사 vs 우주 유출 개념 구분</div>
+                        <p class="text-[11px] text-slate-400">복사 평형 온도의 차이점 보충 안내 권장</p>
+                    </div>
+
+                </div>
+
+                <!-- Teacher Charts Row (Chart.js Accuracy & CO2 Distribution) -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                    <div class="bg-slate-950/60 p-4 rounded-xl border border-slate-800">
+                        <h4 class="text-xs font-bold text-slate-300 mb-3 flex items-center gap-1.5">
+                            <i class="fa-solid fa-chart-bar text-indigo-400"></i> 형성평가 문항별 정답률 (%)
+                        </h4>
+                        <div class="h-[180px]">
+                            <canvas id="teacherQuizChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-950/60 p-4 rounded-xl border border-slate-800">
+                        <h4 class="text-xs font-bold text-slate-300 mb-3 flex items-center gap-1.5">
+                            <i class="fa-solid fa-chart-pie text-amber-400"></i> 학생 탐구 CO₂ 설정 구간 분포
+                        </h4>
+                        <div class="h-[180px]">
+                            <canvas id="teacherCO2Chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Student Submissions Table List -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-6 space-y-4 shadow-2xl">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+                    <h3 class="font-bold text-white text-base flex items-center gap-2">
+                        <i class="fa-solid fa-list-check text-emerald-400"></i> 학생 제출 목록 및 보고서 내용
+                    </h3>
+                    <div class="flex items-center gap-2">
+                        <input type="text" id="teacher-search-input" placeholder="학생 이름/학번 검색..." 
+                               onkeyup="filterSubmissionsTable()"
+                               class="bg-slate-800 border border-slate-700 text-xs text-white rounded-xl px-3 py-1.5 focus:outline-none focus:border-amber-400 w-48">
+                    </div>
+                </div>
+
+                <!-- Table -->
+                <div class="overflow-x-auto rounded-xl border border-slate-800">
+                    <table class="w-full text-left text-xs text-slate-300">
+                        <thead class="bg-slate-800/90 text-slate-200 font-bold border-b border-slate-700">
+                            <tr>
+                                <th class="py-3 px-3">학번 및 성명</th>
+                                <th class="py-3 px-3">제출 일시</th>
+                                <th class="py-3 px-3">형성평가</th>
+                                <th class="py-3 px-3">세운 가설 (요약)</th>
+                                <th class="py-3 px-3">최종 결론 (요약)</th>
+                                <th class="py-3 px-3">피드백 상태</th>
+                                <th class="py-3 px-3 text-center">상세 및 피드백</th>
+                            </tr>
+                        </thead>
+                        <tbody id="teacher-table-tbody" class="divide-y divide-slate-800">
+                            <!-- Populated dynamically via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Student Full Report Detail View Modal for Teacher -->
+    <div id="student-detail-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[110] flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-2xl w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h3 class="font-extrabold text-amber-300 text-base" id="detail-student-title">홍길동 학생의 제출 보고서 상세</h3>
+                <button onclick="closeStudentDetailModal()" class="text-slate-400 hover:text-white text-sm">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="space-y-3 text-xs">
+                <div class="grid grid-cols-2 gap-3 bg-slate-800/60 p-3 rounded-xl border border-slate-700/60">
+                    <div><strong class="text-slate-400">제출 시각:</strong> <span id="detail-time" class="text-white font-mono"></span></div>
+                    <div><strong class="text-slate-400">형성평가 점수:</strong> <span id="detail-score" class="text-amber-400 font-bold"></span></div>
+                </div>
+
+                <div class="space-y-1">
+                    <strong class="text-emerald-400 font-bold">[1] 내가 세운 가설:</strong>
+                    <div id="detail-hypothesis" class="p-3 bg-slate-800/80 rounded-xl text-slate-200 border border-slate-700/80 whitespace-pre-wrap"></div>
+                </div>
+
+                <div class="space-y-1">
+                    <strong class="text-emerald-400 font-bold">[2] 최종 결론 및 지구 환경 변화 추론:</strong>
+                    <div id="detail-conclusion" class="p-3 bg-slate-800/80 rounded-xl text-slate-200 border border-slate-700/80 whitespace-pre-wrap"></div>
+                </div>
+
+                <!-- AI Feedback Generator & Teacher Review Input Box -->
+                <div class="space-y-2 pt-2 border-t border-slate-800">
+                    <div class="flex items-center justify-between">
+                        <strong class="text-amber-300 font-bold text-sm flex items-center gap-1.5">
+                            <i class="fa-solid fa-wand-magic-sparkles text-amber-400"></i> AI 지도 피드백 생성 및 교사 직접 수정
+                        </strong>
+                        <button onclick="generateAIFeedback()" class="px-3 py-1.5 text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition flex items-center gap-1.5 shadow-md">
+                            <i class="fa-solid fa-robot"></i> AI 피드백 초안 생성
+                        </button>
+                    </div>
+                    <p class="text-[11px] text-slate-400 leading-tight">AI가 학생의 가설 및 결론을 과학적 타당성에 따라 분석합니다. 생성된 피드백을 검토하고 수정한 후 [학생 전달]을 누르세요.</p>
+                    <textarea id="detail-feedback-input" rows="5" 
+                        placeholder="[AI 피드백 초안 생성] 버튼을 누르거나, 교사가 직접 지도 코멘트를 입력할 수 있습니다."
+                        class="w-full bg-slate-800 border border-slate-700 focus:border-amber-400 rounded-xl p-3 text-xs text-slate-100 placeholder-slate-500 focus:outline-none leading-relaxed resize-y font-sans"></textarea>
+                </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-2 pt-3 border-t border-slate-800">
+                <span id="detail-feedback-status" class="text-xs text-emerald-400 font-bold hidden">
+                    <i class="fa-solid fa-circle-check mr-1"></i> 피드백 저장 및 전달 완료
+                </span>
+                <div class="flex gap-2 ml-auto">
+                    <button onclick="closeStudentDetailModal()" class="px-3.5 py-2 text-xs font-bold text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-xl transition">닫기</button>
+                    <button onclick="saveAndSendFeedback()" class="px-4 py-2 text-xs font-black text-slate-950 bg-amber-400 hover:bg-amber-300 rounded-xl shadow-lg shadow-amber-500/20 flex items-center gap-1.5 transition active:scale-95">
+                        <i class="fa-solid fa-paper-plane"></i> 검토 후 피드백 전달하기
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Page Footer -->
+    <footer class="border-t border-slate-800 bg-slate-900/80 mt-12 py-6 no-print">
+        <div class="max-w-7xl mx-auto px-4 text-center text-xs text-slate-500 space-y-1">
+            <p>고등학교 통합과학 [10통과2-02-03] '지구온난화로 인한 열수지 변동 탐구' 교육용 인터랙티브 모듈</p>
+            <p>© Interactive Earth Science Education Simulator Platform.</p>
+        </div>
+    </footer>
+
+    <!-- Toast Notification Overlay -->
+    <div id="toast" class="fixed bottom-6 right-6 bg-emerald-500 text-slate-950 font-extrabold px-4 py-3 rounded-xl shadow-2xl transition-all opacity-0 translate-y-5 pointer-events-none z-50 flex items-center gap-2 text-xs sm:text-sm">
+        <i class="fa-solid fa-circle-check text-base"></i>
+        <span id="toast-msg">알림 메시지</span>
+    </div>
+
+    <!-- JavaScript Application Core Logic -->
+    <script>
+        // State Variables
+        let currentCO2 = 425; // Default CO2 level in ppm
+        const baselineCO2 = 280; // Pre-industrial baseline in ppm
+        let chartInstance = null;
+        let teacherQuizChartInstance = null;
+        let teacherCO2ChartInstance = null;
+        let currentSelectedStudentIdx = null; // Currently viewed student index
+
+        // Total Class Size Requirement: 25 students
+        const TOTAL_CLASS_SIZE = 25;
+
+        // Mock Initial Accumulated Student Submissions Data
+        let submissionsData = [
+            { studentInfo: "1학년 1반 01번 강민준", submitTime: "2026-07-28 09:15", score: 100, quizAns: ["B","A","A"], hypothesis: "CO2 농도가 올라가면 대기가 더 많은 적외선을 포획해 대기 역방사가 커지고 지표 기온이 상승할 것이다.", conclusion: "CO2가 증가함에 따라 대기 역방사 수치가 95에서 102 이상으로 증가함. 이로 인해 기온이 1.5도 이상 상승하여 빙하 해빙 속도가 빨라질 것으로 추론됨.", teacherFeedback: "가설 설정과 결론 도출 과정이 매우 논리적입니다. 슈테판-볼츠만 법칙에 따른 지표 복사 증가 메커니즘을 잘 이해하였습니다." },
+            { studentInfo: "1학년 1반 02번 김서연", submitTime: "2026-07-28 09:18", score: 100, quizAns: ["B","A","A"], hypothesis: "온실가스 농도 수치가 올라가면 지구 온난화가 가속되어 유출 복사에너지에 균형이 깨질 것이다.", conclusion: "복사 강제력이 +2.5 W/m2 증가하며 온실효과가 증대됨. 해수면 상승으로 해안 도시 침수가 우려됨.", teacherFeedback: "" },
+            { studentInfo: "1학년 1반 03번 김도윤", submitTime: "2026-07-28 09:22", score: 66, quizAns: ["B","B","A"], hypothesis: "이산화탄소가 많아지면 대기창 방출량이 감소할 것이다.", conclusion: "대기창 직통 방출량은 감소하고 대기 역방사가 대폭 상승함을 확인함.", teacherFeedback: "" },
+            { studentInfo: "1학년 1반 04번 박지민", submitTime: "2026-07-28 09:25", score: 100, quizAns: ["B","A","A"], hypothesis: "CO2 2배 시나리오(560ppm)에서 대기 역방사 증가가 두드러질 것이다.", conclusion: "대기 역방사 상승량이 지표 기온 +1.8도 상승과 직결됨을 시뮬레이터로 검증함.", teacherFeedback: "" },
+            { studentInfo: "1학년 1반 05번 박현우", submitTime: "2026-07-28 09:30", score: 100, quizAns: ["B","A","A"], hypothesis: "이산화탄소 농도가 증가하면 유입되는 태양 복사 에너지보다 대기 흡수가 급증할 것이다.", conclusion: "지표면 방출 복사에너지가 슈테판-볼츠만 법칙에 따라 증가하여 새로운 온도 평형 형성.", teacherFeedback: "" },
+            { studentInfo: "1학년 1반 06번 서아윤", submitTime: "2026-07-28 09:33", score: 66, quizAns: ["B","A","B"], hypothesis: "온실가스가 증가하면 대기 역방사 수치가 커질 것이다.", conclusion: "역방사 수치 증가를 확인하였고 이상 기후 빈도가 늘어날 것으로 추론함.", teacherFeedback: "" },
+            { studentInfo: "1학년 1반 07번 손유준", submitTime: "2026-07-28 09:40", score: 100, quizAns: ["B","A","A"], hypothesis: "850ppm 극단 시나리오에서는 지표 온도가 3도 이상 급상승할 것이다.", conclusion: "복사강제력이 5.0 이상으로 상승하며 평균 기온 3.2도 상승 기록 관측.", teacherFeedback: "" },
+            { studentInfo: "1학년 1반 08번 송지아", submitTime: "2026-07-28 09:42", score: 100, quizAns: ["B","A","A"], hypothesis: "대기가 포획하는 적외선 열이 늘어 대기창 우주 직통 열량이 줄어들 것이다.", conclusion: "대기창 방출량 15.0에서 10.5로 감소 확인.", teacherFeedback: "" },
+            { studentInfo: "1학년 1반 09번 신우진", submitTime: "2026-07-28 09:48", score: 66, quizAns: ["A","A","A"], hypothesis: "CO2 수치 변화에 따라 지표 기온 변화량이 정비례에 가깝게 변할 것이다.", conclusion: "로그 수치 비율로 지속 증가함을 그래프를 통해 확인함.", teacherFeedback: "" },
+            { studentInfo: "1학년 1반 10번 윤하은", submitTime: "2026-07-28 09:50", score: 100, quizAns: ["B","A","A"], hypothesis: "CO2 가 늘어나면 복사 평형 상태 온도가 올라갈 것이다.", conclusion: "유입 70에 대해 유출 70으로 재평형될 때 기온 수치가 현격히 상승함.", teacherFeedback: "" },
+            { studentInfo: "1학년 1반 11번 이준우", submitTime: "2026-07-28 09:55", score: 100, quizAns: ["B","A","A"], hypothesis: "온실효과는 대기 역방사 에너지 증가로 일어난다.", conclusion: "대기 역방사 축적에 의한 온난화 메커니즘을 구체적으로 증명함.", teacherFeedback: "" },
+            { studentInfo: "1학년 1반 12번 이현서", submitTime: "2026-07-28 09:58", score: 100, quizAns: ["B","A","A"], hypothesis: "대기 이산화탄소 축적 시 지표 기온 상승이 유발된다.", conclusion: "지표 기온 변화량이 +1.2도 증가하여 지역 생태계 변화 유발 기대.", teacherFeedback: "" },
+            { studentInfo: "1학년 1반 13번 장민서", submitTime: "2026-07-28 10:05", score: 66, quizAns: ["B","A","C"], hypothesis: "CO2 농도와 대기 역방사량은 비례 관계이다.", conclusion: "실험 데이터 결과 농도 증가에 따라 역방사 수치 연속 증가 확인.", teacherFeedback: "" },
+            { studentInfo: "1학년 1반 14번 정예준", submitTime: "2026-07-28 10:10", score: 100, quizAns: ["B","A","A"], hypothesis: "태양 에너지는 일정하지만 대기가 여분의 열을 되돌려보낼 것이다.", conclusion: "대기 역방사가 핵심 온실효과 발생원임을 확인.", teacherFeedback: "" },
+            { studentInfo: "1학년 1반 15번 조수아", submitTime: "2026-07-28 10:14", score: 100, quizAns: ["B","A","A"], hypothesis: "이산화탄소 배출 증가 시 지구 표면 복사 방출량이 증대된다.", conclusion: "지표 방출량이 115에서 120으로 증가함.", teacherFeedback: "" },
+            { studentInfo: "1학년 1반 16번 최지호", submitTime: "2026-07-28 10:20", score: 100, quizAns: ["B","A","A"], hypothesis: "CO2 560ppm 일 때 평균 기온 2도 가깝게 상승할 것이다.", conclusion: "시뮬레이터에서 온도가 약 +1.85도 상승 기록.", teacherFeedback: "" },
+            { studentInfo: "1학년 1반 17번 한지유", submitTime: "2026-07-28 10:25", score: 66, quizAns: ["C","A","A"], hypothesis: "지구 온난화 시 열수지 항목 중 역방사가 제일 크게 변할 것이다.", conclusion: "가설대로 역방사가 가장 가파르게 늘어남.", teacherFeedback: "" },
+            { studentInfo: "1학년 1반 18번 황준혁", submitTime: "2026-07-28 10:30", score: 100, quizAns: ["B","A","A"], hypothesis: "대기창 탈출 열량이 감소하고 역방사가 증대할 것이다.", conclusion: "온실효과의 에너지 흐름적 구조를 정밀히 파악함.", teacherFeedback: "" },
+            { studentInfo: "1학년 1반 19번 홍길동", submitTime: "2026-07-28 10:35", score: 100, quizAns: ["B","A","A"], hypothesis: "대기 중 이산화탄소 농도가 425ppm에서 560ppm으로 증가하면 대기 역방사량이 늘어나 기온이 상승할 것이다.", conclusion: "데이터 측정 결과 대기 역방사가 97.8에서 100.2 단위로 증가하여 표면 온도가 +1.8도 상승함.", teacherFeedback: "탐구 결론이 데이터 측정치와 연계되어 매우 우수합니다." }
+        ];
+
+        // Teacher Auth Modal Functions
+        function openTeacherAuthModal() {
+            const modal = document.getElementById('teacher-auth-modal');
+            const pwdInput = document.getElementById('teacher-pwd-input');
+            document.getElementById('pwd-error-msg').classList.add('hidden');
+            pwdInput.value = '';
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            modal.classList.add('opacity-100');
+            setTimeout(() => pwdInput.focus(), 100);
+        }
+
+        function closeTeacherAuthModal() {
+            const modal = document.getElementById('teacher-auth-modal');
+            modal.classList.remove('opacity-100');
+            modal.classList.add('opacity-0', 'pointer-events-none');
+        }
+
+        function checkTeacherPassword() {
+            const pwd = document.getElementById('teacher-pwd-input').value;
+            if (pwd === '2428') {
+                closeTeacherAuthModal();
+                openTeacherDashboard();
+            } else {
+                document.getElementById('pwd-error-msg').classList.remove('hidden');
+            }
+        }
+
+        function openTeacherDashboard() {
+            document.getElementById('teacher-dashboard-modal').classList.remove('hidden');
+            renderTeacherDashboard();
+        }
+
+        function closeTeacherDashboard() {
+            document.getElementById('teacher-dashboard-modal').classList.add('hidden');
+        }
+
+        // Filter Submissions Table
+        function filterSubmissionsTable() {
+            const query = (document.getElementById('teacher-search-input').value || '').toLowerCase().trim();
+            const filtered = submissionsData.filter(item => 
+                item.studentInfo.toLowerCase().includes(query) ||
+                (item.hypothesis && item.hypothesis.toLowerCase().includes(query)) ||
+                (item.conclusion && item.conclusion.toLowerCase().includes(query))
+            );
+            renderSubmissionsTable(filtered);
+        }
+
+        // Export Submissions to CSV File
+        function exportToCSV() {
+            if (!submissionsData || submissionsData.length === 0) {
+                showToast("다운로드할 제출 데이터가 없습니다.");
+                return;
+            }
+            let csvContent = "\uFEFF"; // UTF-8 BOM
+            csvContent += "학번 및 성명,제출 일시,형성평가 점수,세운 가설,최종 결론,교사 피드백\n";
+
+            submissionsData.forEach(s => {
+                const info = `"${(s.studentInfo || '').replace(/"/g, '""')}"`;
+                const time = `"${(s.submitTime || '').replace(/"/g, '""')}"`;
+                const score = `"${s.score}"`;
+                const hyp = `"${(s.hypothesis || '').replace(/"/g, '""')}"`;
+                const conc = `"${(s.conclusion || '').replace(/"/g, '""')}"`;
+                const fb = `"${(s.teacherFeedback || '').replace(/"/g, '""')}"`;
+                csvContent += `${info},${time},${score},${hyp},${conc},${fb}\n`;
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `지구열수지_탐구보고서_제출목록_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast("학생 제출 데이터가 CSV 파일로 다운로드되었습니다.");
+        }
+
+        // Render Teacher Dashboard Statistics and Table
+        function renderTeacherDashboard() {
+            const submittedCount = submissionsData.length;
+            const subRate = ((submittedCount / TOTAL_CLASS_SIZE) * 100).toFixed(1);
+
+            document.getElementById('stat-submitted-count').innerText = submittedCount;
+            document.getElementById('stat-total-students').innerText = TOTAL_CLASS_SIZE;
+            document.getElementById('stat-submission-rate').innerText = `(제출률 ${subRate}%)`;
+            document.getElementById('stat-progress-text').innerText = `${submittedCount}/${TOTAL_CLASS_SIZE} 제출 완료`;
+            document.getElementById('stat-progress-bar').style.width = `${subRate}%`;
+
+            // Calculate Avg Score
+            const totalScore = submissionsData.reduce((acc, cur) => acc + cur.score, 0);
+            const avgScore = (totalScore / (submittedCount || 1)).toFixed(1);
+            document.getElementById('stat-avg-score').innerText = avgScore;
+
+            // Render Submissions Table
+            renderSubmissionsTable(submissionsData);
+
+            // Render Teacher Analytics Charts
+            initTeacherCharts();
+        }
+
+        function renderSubmissionsTable(data) {
+            const tbody = document.getElementById('teacher-table-tbody');
+            tbody.innerHTML = '';
+
+            data.forEach((sub, idx) => {
+                const tr = document.createElement('tr');
+                tr.className = 'bg-slate-900/60 hover:bg-slate-800/50 transition';
+                
+                const scoreColor = sub.score === 100 ? 'text-emerald-400 bg-emerald-950/60 border-emerald-500/30' : 'text-amber-400 bg-amber-950/60 border-amber-500/30';
+
+                const hasFeedback = sub.teacherFeedback && sub.teacherFeedback.trim().length > 0;
+                const feedbackBadge = hasFeedback ? 
+                    '<span class="px-2 py-0.5 text-[10px] font-bold bg-indigo-950/80 text-indigo-300 border border-indigo-500/40 rounded-md"><i class="fa-solid fa-check mr-1"></i>피드백 완료</span>' : 
+                    '<span class="px-2 py-0.5 text-[10px] font-medium text-slate-500 bg-slate-800 rounded-md">미작성</span>';
+
+                tr.innerHTML = `
+                    <td class="py-2.5 px-3 font-bold text-slate-100">${sub.studentInfo}</td>
+                    <td class="py-2.5 px-3 font-mono text-slate-400 text-[11px]">${sub.submitTime}</td>
+                    <td class="py-2.5 px-3">
+                        <span class="px-2 py-0.5 font-mono font-bold text-xs rounded-md border ${scoreColor}">
+                            ${sub.score}점
+                        </span>
+                    </td>
+                    <td class="py-2.5 px-3 text-slate-300 max-w-[180px] truncate" title="${sub.hypothesis}">${sub.hypothesis || '-'}</td>
+                    <td class="py-2.5 px-3 text-slate-300 max-w-[200px] truncate" title="${sub.conclusion}">${sub.conclusion || '-'}</td>
+                    <td class="py-2.5 px-3">${feedbackBadge}</td>
+                    <td class="py-2.5 px-3 text-center">
+                        <button onclick="viewStudentDetail(${idx})" class="px-2.5 py-1 text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30 rounded-lg transition">
+                            상세 및 AI 피드백
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function viewStudentDetail(idx) {
+            currentSelectedStudentIdx = idx;
+            const item = submissionsData[idx];
+            document.getElementById('detail-student-title').innerText = `${item.studentInfo} 학생의 제출 보고서`;
+            document.getElementById('detail-time').innerText = item.submitTime;
+            document.getElementById('detail-score').innerText = `${item.score} 점 (3문항 중 ${Math.round(item.score/33.33)}문항 정답)`;
+            document.getElementById('detail-hypothesis').innerText = item.hypothesis || '(가설 미입력)';
+            document.getElementById('detail-conclusion').innerText = item.conclusion || '(결론 미입력)';
+            
+            // Set existing teacher feedback or clear
+            const feedbackInput = document.getElementById('detail-feedback-input');
+            feedbackInput.value = item.teacherFeedback || '';
+
+            const statusElem = document.getElementById('detail-feedback-status');
+            if (item.teacherFeedback && item.teacherFeedback.trim().length > 0) {
+                statusElem.classList.remove('hidden');
+            } else {
+                statusElem.classList.add('hidden');
+            }
+
+            document.getElementById('student-detail-modal').classList.remove('hidden');
+        }
+
+        function generateAIFeedback() {
+            if (currentSelectedStudentIdx === null) return;
+            const item = submissionsData[currentSelectedStudentIdx];
+            
+            // AI Analysis Generation based on student data
+            let feedbackText = `[AI 학습 분석 및 지도 피드백]\n`;
+            
+            // 1. Hypothesis Feedback
+            if (item.hypothesis && (item.hypothesis.includes("대기 역방사") || item.hypothesis.includes("온도"))) {
+                feedbackText += `✔ [가설 평가]: CO₂ 농도 변화와 대기 역방사 및 지표 온도 간의 과학적 변인 관계를 타당하게 설정하였습니다.\n`;
+            } else {
+                feedbackText += `✔ [가설 평가]: 가설에서 대기 역방사(온실효과)와 지표 기온 상승 간의 직접적인 상호작용 변인을 명확히 기술하면 더욱 훌륭한 탐구가 됩니다.\n`;
+            }
+
+            // 2. Quiz Score Feedback
+            if (item.score === 100) {
+                feedbackText += `✔ [개념 이해]: 열수지 3문항 형성평가 100점으로 복사강제력, 대기창 방출, 복사평형 메커니즘 개념을 완벽히 이해하고 있습니다.\n`;
+            } else {
+                feedbackText += `✔ [개념 보충]: 형성평가 ${item.score}점 기록. 대기 중 CO₂ 농도 증가 시 '대기창 우주직통 방출량' 감소와 '대기 역방사량' 증가 개념을 재확인하기 바랍니다.\n`;
+            }
+
+            // 3. Conclusion & Impact Feedback
+            if (item.conclusion && item.conclusion.length > 20) {
+                feedbackText += `✔ [결론 및 종합]: 측정 수치 데이터를 근거로 지구온난화 메커니즘과 지표 열 평형 상승을 논리적으로 잘 도출하였습니다.\n`;
+            } else {
+                feedbackText += `✔ [결론 보충]: 결론 작성 시 시뮬레이터에서 기재한 대기 역방사 단위 수치와 기온 변화(ΔT) 측정값을 정량적으로 제시하면 설득력이 높아집니다.\n`;
+            }
+
+            feedbackText += `💡 [교사 한마디]: 열수지 변동에 따른 지구 온난화의 원인을 차분히 분석한 훌륭한 탐구 보고서입니다!`;
+
+            // Insert generated draft into textarea for teacher review and modification
+            document.getElementById('detail-feedback-input').value = feedbackText;
+            showToast("AI 피드백 초안이 생성되었습니다. 내용을 검토 및 수정한 뒤 전송하세요.");
+        }
+
+        function saveAndSendFeedback() {
+            if (currentSelectedStudentIdx === null) return;
+            const feedbackText = document.getElementById('detail-feedback-input').value.trim();
+            
+            if (!feedbackText) {
+                showToast("전송할 피드백 내용을 입력하거나 AI 초안을 생성해주세요.");
+                return;
+            }
+
+            // Save feedback into submissionsData
+            submissionsData[currentSelectedStudentIdx].teacherFeedback = feedbackText;
+
+            // Show status
+            document.getElementById('detail-feedback-status').classList.remove('hidden');
+
+            // If current student matches the report form name, render feedback in student UI as well
+            const currentStudentInput = document.getElementById('student-info').value.trim();
+            if (currentStudentInput && submissionsData[currentSelectedStudentIdx].studentInfo.includes(currentStudentInput)) {
+                renderStudentFeedbackInReport(feedbackText);
+            }
+
+            // Re-render Teacher Table
+            renderSubmissionsTable(submissionsData);
+
+            showToast("선생님의 피드백이 검토 완료되어 학생 보고서로 성공적으로 전송되었습니다!");
+        }
+
+        function renderStudentFeedbackInReport(text) {
+            const feedbackBox = document.getElementById('student-feedback-box');
+            const feedbackContent = document.getElementById('student-feedback-content');
+            const feedbackDate = document.getElementById('student-feedback-date');
+
+            if (text && text.trim().length > 0) {
+                feedbackContent.innerText = text;
+                const now = new Date();
+                feedbackDate.innerText = `피드백 수신: ${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+                feedbackBox.classList.remove('hidden');
+            } else {
+                feedbackBox.classList.add('hidden');
+            }
+        }
+
+        function closeStudentDetailModal() {
+            document.getElementById('student-detail-modal').classList.add('hidden');
+            currentSelectedStudentIdx = null;
+        }
+
+        // Student Formative Assessment & Report Submission Logic
+        function submitStudentReport() {
+            const studentInfo = document.getElementById('student-info').value.trim();
+            if (!studentInfo) {
+                showToast("보고서 제출을 위해 [학번 및 성명]을 기재해주세요.");
+                document.getElementById('student-info').focus();
+                return;
+            }
+
+            // Grade Quiz Answers
+            let q1 = document.querySelector('input[name="quiz-q1"]:checked')?.value;
+            let q2 = document.querySelector('input[name="quiz-q2"]:checked')?.value;
+            let q3 = document.querySelector('input[name="quiz-q3"]:checked')?.value;
+
+            if (!q1 || !q2 || !q3) {
+                showToast("형성평가 3개 문항에 모두 답안을 선택해주세요.");
+                return;
+            }
+
+            let correctCount = 0;
+            if (q1 === 'B') correctCount++; // Q1 Ans: B
+            if (q2 === 'A') correctCount++; // Q2 Ans: A
+            if (q3 === 'A') correctCount++; // Q3 Ans: A
+
+            const score = Math.round((correctCount / 3) * 100);
+            const now = new Date();
+            const timeStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+
+            // Check existing or new
+            const existingIdx = submissionsData.findIndex(s => s.studentInfo === studentInfo);
+            const existingFeedback = existingIdx !== -1 ? submissionsData[existingIdx].teacherFeedback : "";
+
+            const newSubmission = {
+                studentInfo: studentInfo,
+                submitTime: timeStr,
+                score: score,
+                quizAns: [q1, q2, q3],
+                hypothesis: document.getElementById('report-hypothesis').value.trim(),
+                conclusion: document.getElementById('report-conclusion').value.trim(),
+                teacherFeedback: existingFeedback
+            };
+
+            if (existingIdx !== -1) {
+                submissionsData[existingIdx] = newSubmission;
+            } else {
+                submissionsData.unshift(newSubmission);
+            }
+
+            // Check and display feedback if present
+            if (existingFeedback) {
+                renderStudentFeedbackInReport(existingFeedback);
+            }
+
+            showToast(`[${studentInfo}] 님 보고서 제출 완료! (형성평가 점수: ${score}점)`);
+        }
+
+        // Teacher Charts Rendering (Quiz Question Accuracy & CO2 Distribution)
+        function initTeacherCharts() {
+            // Chart 1: Quiz Question Accuracy Chart
+            const ctx1 = document.getElementById('teacherQuizChart')?.getContext('2d');
+            if (ctx1) {
+                if (teacherQuizChartInstance) teacherQuizChartInstance.destroy();
+
+                let q1Correct = 0, q2Correct = 0, q3Correct = 0;
+                submissionsData.forEach(s => {
+                    if (s.quizAns && s.quizAns[0] === 'B') q1Correct++;
+                    if (s.quizAns && s.quizAns[1] === 'A') q2Correct++;
+                    if (s.quizAns && s.quizAns[2] === 'A') q3Correct++;
+                });
+
+                const total = submissionsData.length || 1;
+                teacherQuizChartInstance = new Chart(ctx1, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Q1.대기역방사', 'Q2.복사평형유출량', 'Q3.대기창방출변화'],
+                        datasets: [{
+                            label: '정답률 (%)',
+                            data: [
+                                Math.round((q1Correct/total)*100),
+                                Math.round((q2Correct/total)*100),
+                                Math.round((q3Correct/total)*100)
+                            ],
+                            backgroundColor: ['rgba(99, 102, 241, 0.8)', 'rgba(16, 185, 129, 0.8)', 'rgba(244, 63, 94, 0.8)'],
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { min: 0, max: 100, ticks: { color: '#94a3b8' } },
+                            x: { ticks: { color: '#cbd5e1', font: { size: 10 } } }
+                        }
+                    }
+                });
+            }
+
+            // Chart 2: CO2 Distribution Chart
+            const ctx2 = document.getElementById('teacherCO2Chart')?.getContext('2d');
+            if (ctx2) {
+                if (teacherCO2ChartInstance) teacherCO2ChartInstance.destroy();
+                teacherCO2ChartInstance = new Chart(ctx2, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['280-425ppm (기본)', '560ppm (2배배출)', '850ppm+ (고배출)'],
+                        datasets: [{
+                            data: [4, 11, 4],
+                            backgroundColor: ['#10b981', '#f59e0b', '#f43f5e']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'right', labels: { color: '#cbd5e1', font: { size: 10 } } }
+                        }
+                    }
+                });
+            }
+        }
+
+        // Window Onload Handler
+        window.onload = function() {
+            // Set current date in report form
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('report-date').value = today;
+
+            // Slider Listener
+            const slider = document.getElementById('co2-slider');
+            slider.addEventListener('input', function(e) {
+                updateSimulation(parseFloat(e.target.value));
+            });
+
+            // Initialize Chart.js
+            initChart();
+
+            // Run initial simulation
+            updateSimulation(currentCO2);
+        };
+
+        // Preset Scenario Button Handler
+        function setCO2Preset(ppm) {
+            document.getElementById('co2-slider').value = ppm;
+            updateSimulation(ppm);
+            showToast(`CO₂ 농도가 ${ppm} ppm으로 변경되었습니다.`);
+        }
+
+        // Earth Radiative Heat Budget Calculation Engine
+        function calculateHeatBudget(co2) {
+            // Radiative Forcing formula: Delta F = 5.35 * ln(C / C0) W/m2
+            const forcing = 5.35 * Math.log(co2 / baselineCO2);
+            
+            // Normalized temperature anomaly: ~3.0°C per CO2 doubling
+            const tempAnomaly = 3.0 * (Math.log(co2 / baselineCO2) / Math.log(2));
+
+            // Budget Fluxes breakdown (Normalized to 100 incoming Solar energy)
+            // Baseline 280 ppm: Surface Solar Absorbed=50, Atm Absorbed=20, Reflected Solar=30
+            // Surface Emission IR = 115.0
+            // Atmospheric Window Direct Space Escape = 15.0
+            // Downward Longwave (Greenhouse Re-radiation) = 95.0
+            // Atmospheric Upward Space Emission = 54.2
+
+            // GHG Absorption reduces atmospheric window escape
+            const windowEscape = Math.max(4.0, 15.0 - (forcing * 1.3));
+            
+            // Downward Re-radiation increases as trapped atmospheric heat grows
+            const downwardLW = 95.0 + (forcing * 1.25);
+
+            // Surface IR Emission increases with temperature rise according to Stefan-Boltzmann
+            const surfaceLW = 115.0 + (forcing * 1.15);
+
+            // Atmosphere upward emission to space
+            const atmUpward = 55.0 - (forcing * 0.1);
+
+            // Total outgoing radiation to space (Reflected Solar 30 + Window + Atm Upward)
+            const outgoingTotal = 30.0 + windowEscape + atmUpward;
+
+            return {
+                co2: co2,
+                forcing: forcing.toFixed(2),
+                tempAnomaly: tempAnomaly.toFixed(2),
+                surfaceLW: surfaceLW.toFixed(1),
+                windowEscape: windowEscape.toFixed(1),
+                downwardLW: downwardLW.toFixed(1),
+                atmUpward: atmUpward.toFixed(1),
+                outgoingTotal: outgoingTotal.toFixed(1)
+            };
+        }
+
+        // Update Simulator Views
+        function updateSimulation(co2) {
+            currentCO2 = co2;
+            const data = calculateHeatBudget(co2);
+
+            // 1. Update Metric Cards
+            document.getElementById('co2-val-display').innerText = co2;
+            
+            const tempElem = document.getElementById('metric-temp');
+            tempElem.innerText = (data.tempAnomaly >= 0 ? '+' : '') + data.tempAnomaly;
+
+            document.getElementById('metric-forcing').innerText = '+' + data.forcing;
+            document.getElementById('metric-downwave').innerText = data.downwardLW;
+            
+            const diffDown = (parseFloat(data.downwardLW) - 95.0).toFixed(1);
+            document.getElementById('metric-downwave-diff').innerText = `(${diffDown >= 0 ? '+' : ''}${diffDown} 증가)`;
+            
+            document.getElementById('metric-outgoing').innerText = data.outgoingTotal;
+            document.getElementById('metric-balance-status').innerText = `유입 70.0 vs 유출 ${data.outgoingTotal}`;
+
+            // 2. Update SVG Diagram Text & Stroke Widths
+            document.getElementById('svg-text-sfc-lw').textContent = `(${data.surfaceLW})`;
+            document.getElementById('svg-text-window').textContent = `(${data.windowEscape})`;
+            document.getElementById('svg-text-down-lw').textContent = `${data.downwardLW} 단위`;
+
+            // Stroke Scaling for Downward Re-radiation & Window Paths
+            const downPath = document.getElementById('svg-path-down-lw');
+            const downWidth = 18 + (parseFloat(data.forcing) * 1.25);
+            downPath.setAttribute('stroke-width', Math.min(32, downWidth));
+
+            const winPath = document.getElementById('svg-path-window');
+            const winWidth = Math.max(2, 6 - (parseFloat(data.forcing) * 0.5));
+            winPath.setAttribute('stroke-width', winWidth);
+
+            // Atmospheric Layer Visual Density/Opacity Change
+            const atmBg = document.getElementById('svg-atm-bg');
+            const opacity = 0.65 + Math.min(0.3, (co2 - 280) / 1200);
+            atmBg.setAttribute('fill-opacity', opacity.toFixed(2));
+
+            // 3. Update Educational Data Analysis Guide
+            updateDataAnalysisGuide(data);
+
+            // 4. Update Chart.js dataset if present
+            if (chartInstance) {
+                chartInstance.data.datasets[0].data = [
+                    95.0, // Baseline Downward LW
+                    parseFloat(data.downwardLW),
+                    15.0, // Baseline Window
+                    parseFloat(data.windowEscape),
+                    115.0, // Baseline Surface Emission
+                    parseFloat(data.surfaceLW)
+                ];
+                chartInstance.update();
+            }
+        }
+
+        // Dynamic Educational Analysis Text Generator
+        function updateDataAnalysisGuide(data) {
+            document.getElementById('guide-step1-tag').innerText = `CO₂ = ${data.co2} ppm`;
+            document.getElementById('guide-step1-text').innerHTML = 
+                `대기 중 이산화탄소 농도가 <strong>${data.co2} ppm</strong>으로 변동함에 따라, ` +
+                `대기의 적외선 포획량이 늘어나 복사 강제력이 <strong>+${data.forcing} W/m²</strong> 발생했습니다. ` +
+                `대기창을 통해 우주로 직접 방출되는 열량은 15.0에서 <strong>${data.windowEscape} 단위</strong>로 감소합니다.`;
+
+            const diffDown = (parseFloat(data.downwardLW) - 95.0).toFixed(1);
+            document.getElementById('guide-step2-tag').innerText = `대기 역방사: ${data.downwardLW} 단위`;
+            document.getElementById('guide-step2-text').innerHTML = 
+                `대기층 온도가 늘어난 적외선 흡수로 상승하면서 지표면 방향으로 방출하는 <strong>대기 역방사(온실효과)</strong> 수치가 ` +
+                `기준(95.0) 대비 <strong>+${diffDown} 단위</strong> 증대되어 지표면에 더 많은 열이 축적됩니다.`;
+
+            document.getElementById('guide-step3-tag').innerText = `ΔT = +${data.tempAnomaly} ℃`;
+            document.getElementById('guide-step3-text').innerHTML = 
+                `지표 열 축적으로 평균 기온이 <strong>+${data.tempAnomaly} ℃</strong> 상승하였습니다. ` +
+                `이에 따라 지표면 방출 복사에너지도 <strong>${data.surfaceLW} 단위</strong>로 늘어나 새로운 복사 평형 상태에 도달합니다.`;
+
+            // Dynamic Hint Prompt Adapting to Scenario
+            if (data.co2 < 350) {
+                document.getElementById('guide-prompt').innerText = 
+                    "산업혁명 이전 수준의 온실가스 농도입니다. 온실효과가 적절하게 유지되어 지구 평균 기온이 안정된 평형을 지속하고 있습니다.";
+            } else if (data.co2 < 500) {
+                document.getElementById('guide-prompt').innerText = 
+                    "현재 수준의 CO₂ 농도입니다. 대기 역방사 증가로 발생한 약 +0.8~1.2℃의 기온 상승이 기후변화 및 생태계에 미치는 영향을 서술해 보세요.";
+            } else {
+                document.getElementById('guide-prompt').innerText = 
+                    "고농도 온실가스 축적 시나리오입니다. 급증한 대기 역방사 수치와 지표 기온 상승이 빙하 해빙, 해수면 상승 및 기상 이변에 미칠 영향에 대해 탐구 보고서에 기록해 보세요.";
+            }
+        }
+
+        // Initialize Chart.js Visualization
+        function initChart() {
+            const ctx = document.getElementById('budgetBarChart').getContext('2d');
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['대기 역방사(기준)', '대기 역방사(현재)', '대기창 방출(기준)', '대기창 방출(현재)', '지표 방출(기준)', '지표 방출(현재)'],
+                    datasets: [{
+                        label: '에너지 수치 (단위)',
+                        data: [95.0, 97.8, 15.0, 12.2, 115.0, 117.8],
+                        backgroundColor: [
+                            'rgba(249, 115, 22, 0.4)',
+                            'rgba(249, 115, 22, 0.9)',
+                            'rgba(248, 113, 113, 0.4)',
+                            'rgba(248, 113, 113, 0.9)',
+                            'rgba(239, 68, 68, 0.4)',
+                            'rgba(239, 68, 68, 0.9)'
+                        ],
+                        borderColor: [
+                            '#f97316', '#f97316',
+                            '#f87171', '#f87171',
+                            '#ef4444', '#ef4444'
+                        ],
+                        borderWidth: 1.5,
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return ` 에너지: ${context.parsed.y} 단위`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                            ticks: { color: '#94a3b8' }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#cbd5e1', font: { size: 11 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Switch View Tab (Sankey Diagram vs Chart.js Bar Chart)
+        function switchViewTab(tab) {
+            const btnSankey = document.getElementById('btn-tab-sankey');
+            const btnChart = document.getElementById('btn-tab-chart');
+            const tabSankey = document.getElementById('tab-sankey');
+            const tabChart = document.getElementById('tab-chart');
+
+            if (tab === 'sankey') {
+                btnSankey.className = 'px-3.5 py-1.5 text-xs sm:text-sm font-bold rounded-lg bg-indigo-600 text-white transition flex items-center gap-2';
+                btnChart.className = 'px-3.5 py-1.5 text-xs sm:text-sm font-bold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition flex items-center gap-2';
+                tabSankey.classList.remove('hidden');
+                tabChart.classList.add('hidden');
+            } else {
+                btnChart.className = 'px-3.5 py-1.5 text-xs sm:text-sm font-bold rounded-lg bg-indigo-600 text-white transition flex items-center gap-2';
+                btnSankey.className = 'px-3.5 py-1.5 text-xs sm:text-sm font-bold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition flex items-center gap-2';
+                tabChart.classList.remove('hidden');
+                tabSankey.classList.add('hidden');
+            }
+        }
+
+        // Capture Current Data Row to Student Report Data Table
+        function captureDataToReport() {
+            const data = calculateHeatBudget(currentCO2);
+            const tbody = document.getElementById('report-data-tbody');
+
+            const tr = document.createElement('tr');
+            tr.className = 'bg-slate-900/60 hover:bg-slate-800/50 transition';
+            tr.innerHTML = `
+                <td class="py-2 px-3 font-mono font-bold text-amber-400">${data.co2} ppm</td>
+                <td class="py-2 px-3 font-mono">+${data.forcing}</td>
+                <td class="py-2 px-3 font-mono text-orange-300 font-bold">${data.downwardLW}</td>
+                <td class="py-2 px-3 font-mono">${data.windowEscape}</td>
+                <td class="py-2 px-3 font-mono">${data.surfaceLW}</td>
+                <td class="py-2 px-3 font-mono text-rose-400 font-bold">+${data.tempAnomaly} ℃</td>
+                <td class="py-2 px-3 text-center no-print">
+                    <button onclick="this.closest('tr').remove(); showToast('데이터 행이 삭제되었습니다.');" class="text-rose-400 hover:text-rose-300 text-xs p-1">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+
+            showToast(`CO₂ ${data.co2} ppm 측정 데이터가 보고서 테이블에 추가되었습니다!`);
+        }
+
+        // Copy Full Text Report to Clipboard
+        function copyReportToClipboard() {
+            const student = document.getElementById('student-info').value || '(학번 및 성명 미입력)';
+            const date = document.getElementById('report-date').value;
+            const hypothesis = document.getElementById('report-hypothesis').value || '(미작성)';
+            const conclusion = document.getElementById('report-conclusion').value || '(미작성)';
+
+            let reportText = `[통합과학 탐구 보고서: 지구온난화로 인한 열수지 변동]\n`;
+            reportText += `■ 학번 및 성명: ${student}\n`;
+            reportText += `■ 일시: ${date}\n\n`;
+            reportText += `[1. 내가 세운 가설]\n${hypothesis}\n\n`;
+            reportText += `[2. 최종 결론 및 지구 환경 변화 추론]\n${conclusion}\n`;
+
+            const dummy = document.createElement("textarea");
+            document.body.appendChild(dummy);
+            dummy.value = reportText;
+            dummy.select();
+            document.execCommand("copy");
+            document.body.removeChild(dummy);
+
+            showToast("탐구 보고서 내용이 클립보드에 복사되었습니다!");
+        }
+
+        // Print Report or Export PDF
+        function printReport() {
+            const studentInput = document.getElementById('student-info');
+            if (!studentInput.value.trim()) {
+                showToast("출력 전 [학번 및 성명]을 먼저 기재해주세요.");
+                studentInput.focus();
+                return;
+            }
+            window.print();
+        }
+
+        // Toast Helper
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toast-msg');
+            toastMsg.innerText = msg;
+            toast.classList.remove('opacity-0', 'translate-y-5', 'pointer-events-none');
+            toast.classList.add('opacity-100', 'translate-y-0');
+
+            setTimeout(() => {
+                toast.classList.remove('opacity-100', 'translate-y-0');
+                toast.classList.add('opacity-0', 'translate-y-5', 'pointer-events-none');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
